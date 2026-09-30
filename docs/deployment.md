@@ -10,7 +10,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/ai-study-buddy.git
+git clone https://github.com/ShaikShaguffthaAfreen/ai-study-buddy.git
 cd ai-study-buddy
 
 # Install dependencies
@@ -54,17 +54,17 @@ Vercel is the creator of Next.js and provides seamless deployment.
 #### Step 1: Push to GitHub
 ```bash
 git add .
-git commit -m "Initial commit"
+git commit -m "Describe your change"
 git push origin main
 ```
 
 #### Step 2: Connect to Vercel
 1. Go to [vercel.com](https://vercel.com)
 2. Sign up with GitHub
-3. Click "New Project"
-4. Select your repository
-5. Configure project settings
-6. Deploy
+3. Click "Add New..." → "Project"
+4. Import `ShaikShaguffthaAfreen/ai-study-buddy`
+5. Keep the detected Next.js settings; no environment variables are needed for local-only features
+6. Click "Deploy" and use the generated HTTPS URL
 
 #### Step 3: Environment Variables
 ```bash
@@ -76,7 +76,17 @@ NEXT_PUBLIC_OPENAI_API_KEY=your_key_here
 NEXT_PUBLIC_GEMINI_API_KEY=your_key_here
 ```
 
-#### Step 4: Custom Domain
+#### Step 4: Install the PWA on a phone
+
+The production website includes a web app manifest and service worker. After deployment over HTTPS:
+
+- **Android:** Open the site in Chrome, open the browser menu, then choose "Install app" or "Add to Home screen".
+- **iPhone/iPad:** Open the site in Safari, tap Share, then "Add to Home Screen".
+- **Desktop:** Use the install icon in Chrome or Edge when it appears in the address bar.
+
+The offline cache covers the app shell and previously visited pages/assets. First-time loads and cloud AI need an internet connection.
+
+#### Step 5: Custom Domain
 1. In Vercel dashboard → Project settings
 2. Click "Domains"
 3. Add your custom domain

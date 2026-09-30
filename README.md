@@ -234,11 +234,33 @@ Test files are located alongside their source with `.test.ts` suffix:
 
 ## 🌐 Deployment
 
-### Deploy to Vercel
+### Deploy Website and Installable Mobile App to Vercel
+
+The web app is also installable on supported phones as a Progressive Web App (PWA). It uses the responsive website and does not require a separate app-store build. HTTPS is required for installation and offline support.
+
+1. Open [Vercel](https://vercel.com/) and sign in with the GitHub account that owns `ShaikShaguffthaAfreen/ai-study-buddy`.
+2. Select **Add New... → Project**, import `ai-study-buddy`, and keep the detected Next.js settings.
+3. Select **Deploy**. No environment variables are required for local-only features.
+4. After deployment, open the provided `*.vercel.app` URL on desktop and phone.
+
+Every push to the GitHub `main` branch triggers a new deployment.
+
+### Install on a phone
+
+- **Android:** Open the deployed HTTPS URL in Chrome, open the browser menu, then choose **Install app** or **Add to Home screen**.
+- **iPhone/iPad:** Open the deployed HTTPS URL in Safari, tap **Share**, then **Add to Home Screen**.
+- **Desktop:** Use the install icon in Chrome or Edge when offered in the address bar.
+
+The service worker caches the app shell and previously visited pages/assets where available. First-time page loads and optional cloud AI still require an internet connection.
+
+### Deploy to Vercel with the CLI
 ```bash
-npm install -g vercel
-vercel
+npm install
+npm run build
+npx vercel
 ```
+
+The CLI will ask you to authenticate with Vercel and link the project. Follow the prompts, then run `npx vercel --prod` for the production URL.
 
 ### Deploy to Self-Hosted
 ```bash

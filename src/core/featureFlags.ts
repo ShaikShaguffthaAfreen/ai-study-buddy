@@ -54,7 +54,7 @@ class FeatureFlagManager {
     return this.flags.enableAI && this.flags.aiProvider !== null;
   }
 
-  public getAIProvider(): string | null {
+  public getAIProvider(): FeatureFlags['aiProvider'] {
     return this.flags.aiProvider;
   }
 

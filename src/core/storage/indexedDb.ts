@@ -6,7 +6,6 @@ import {
   Flashcard,
   Quiz,
   LearningProgress,
-  StorageSchema,
 } from '@/types';
 
 export class StorageDB {

@@ -175,7 +175,6 @@ export class QuizGenerator {
         return { questions: [], totalQuestions: 0 };
       }
 
-      const keywords = KeywordExtractor.extractKeywords(text, 20);
       const questions: QuizQuestion[] = [];
 
       // Generate questions from sentences
@@ -188,13 +187,13 @@ export class QuizGenerator {
 
         // Create question variations
         if (sentence.includes('is') || sentence.includes('are')) {
-          questions.push(this.createDefinitionQuestion(sentence, keywords));
+          questions.push(this.createDefinitionQuestion(sentence));
           questionCount++;
         } else if (sentence.includes('because') || sentence.includes('due to')) {
-          questions.push(this.createCausalQuestion(sentence, keywords));
+          questions.push(this.createCausalQuestion(sentence));
           questionCount++;
         } else if (i < sentences.length - 1) {
-          questions.push(this.createComprehensionQuestion(sentence, sentences[i + 1], keywords));
+          questions.push(this.createComprehensionQuestion(sentence, sentences[i + 1]));
           questionCount++;
         }
       }
@@ -209,10 +208,7 @@ export class QuizGenerator {
     }
   }
 
-  private static createDefinitionQuestion(
-    sentence: string,
-    keywords: string[]
-  ): QuizQuestion {
+  private static createDefinitionQuestion(sentence: string): QuizQuestion {
     const parts = sentence.split(' is ');
     const term = parts[0].trim();
     const definition = parts.length > 1 ? parts[1].trim() : sentence;
@@ -232,10 +228,7 @@ export class QuizGenerator {
     };
   }
 
-  private static createCausalQuestion(
-    sentence: string,
-    keywords: string[]
-  ): QuizQuestion {
+  private static createCausalQuestion(sentence: string): QuizQuestion {
     const parts = sentence.split(/because|due to/i);
     const cause = parts.length > 1 ? parts[1].trim() : 'unknown cause';
 
@@ -256,8 +249,7 @@ export class QuizGenerator {
 
   private static createComprehensionQuestion(
     sentence1: string,
-    sentence2: string,
-    keywords: string[]
+    sentence2: string
   ): QuizQuestion {
     return {
       id: `q-${Math.random()}`,

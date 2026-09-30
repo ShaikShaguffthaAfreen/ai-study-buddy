@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "AI Study Buddy",
+  "short_name": "Study Buddy",
+  "description": "An offline-first study companion for summaries, flashcards, quizzes, and progress tracking.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icons/study-buddy.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
