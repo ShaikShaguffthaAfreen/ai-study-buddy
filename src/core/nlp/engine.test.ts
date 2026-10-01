@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { Summarizer, KeywordExtractor, Explainer, QuizGenerator } from '@/core/nlp/engine';
 
 describe('NLP Engine', () => {
