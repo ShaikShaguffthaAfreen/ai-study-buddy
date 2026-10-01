@@ -6,11 +6,13 @@ import { Quiz } from '@/types';
 interface QuizEngineProps {
   quiz: Quiz;
   onQuizComplete?: (results: { score: number; totalQuestions: number }) => void;
+  onRestart?: () => void;
 }
 
 export const QuizEngine: React.FC<QuizEngineProps> = ({
   quiz,
   onQuizComplete,
+  onRestart,
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>(
@@ -103,10 +105,11 @@ export const QuizEngine: React.FC<QuizEngineProps> = ({
         </div>
 
         <button
-          onClick={() => window.location.reload()}
+          onClick={onRestart}
+          disabled={!onRestart}
           className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold"
         >
-          Retake Quiz
+          Create Another Quiz
         </button>
       </div>
     );

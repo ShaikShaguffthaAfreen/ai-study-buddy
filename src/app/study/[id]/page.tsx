@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/core/storage/indexedDb';
 import { Summarizer, QuizGenerator, KeywordExtractor, Explainer } from '@/core/nlp/engine';
@@ -22,34 +22,9 @@ export default function StudyPage() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [quizExhausted, setQuizExhausted] = useState(false);
 
-  useEffect(() => {
-    if (documentId) {
-      loadDocument();
-    }
-  }, [documentId]);
-
-  const loadDocument = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      await db.initialize();
-      const doc = await db.getDocument(documentId);
-      if (doc) {
-        setDocument(doc);
-        generateInitialContent(doc);
-      } else {
-        setError('Document not found in database');
-      }
-    } catch (error) {
-      console.error('Failed to load document:', error);
-      setError(`Failed to load document: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateInitialContent = (doc: Document) => {
+  const generateInitialContent = useCallback((doc: Document) => {
     try {
       // Generate summary
       const summaryResult = Summarizer.summarize(doc.content, 0.25);
@@ -84,20 +59,81 @@ export default function StudyPage() {
         setFlashcards(fcards);
       }
 
-      // Generate quiz
-      const quizResult = QuizGenerator.generateMCQs(doc.content, 5);
-      if (quizResult?.questions && quizResult.questions.length > 0) {
-        setQuiz({
-          id: `quiz-${doc.id}`,
-          documentId: doc.id,
-          title: `Quiz: ${doc.name}`,
-          questions: quizResult.questions,
-          createdAt: new Date(),
-        });
-      }
     } catch (error) {
       console.error('Error generating study content:', error);
     }
+  }, []);
+
+  const loadDocument = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await db.initialize();
+      const doc = await db.getDocument(documentId);
+      if (doc) {
+        setDocument(doc);
+        generateInitialContent(doc);
+      } else {
+        setError('Document not found in database');
+      }
+    } catch (error) {
+      console.error('Failed to load document:', error);
+      setError(`Failed to load document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId, generateInitialContent]);
+
+  useEffect(() => {
+    if (documentId) {
+      void loadDocument();
+    }
+  }, [documentId, loadDocument]);
+
+  const generateQuiz = (doc: Document, startFresh = false) => {
+    const historyKey = `quiz-history-${doc.id}`;
+    let usedQuestionIds: string[] = [];
+    try {
+      const storedHistory = startFresh ? null : localStorage.getItem(historyKey);
+      const parsedHistory: unknown = storedHistory ? JSON.parse(storedHistory) : [];
+      if (Array.isArray(parsedHistory)) {
+        usedQuestionIds = parsedHistory.filter((id): id is string => typeof id === 'string');
+      }
+    } catch (storageError) {
+      console.warn('Quiz history could not be read:', storageError);
+    }
+
+    const quizResult = QuizGenerator.generateMCQs(doc.content, 5, usedQuestionIds);
+    if (quizResult.questions.length === 0) {
+      setQuiz(null);
+      setQuizExhausted(true);
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        historyKey,
+        JSON.stringify([...new Set([...usedQuestionIds, ...quizResult.questions.map(question => question.id)])])
+      );
+    } catch (storageError) {
+      console.warn('Quiz history could not be saved:', storageError);
+    }
+
+    setQuiz({
+      id: `quiz-${doc.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      documentId: doc.id,
+      title: `Quiz: ${doc.name}`,
+      questions: quizResult.questions,
+      createdAt: new Date(),
+    });
+    setQuizExhausted(false);
+  };
+
+  const handleTabChange = (tab: 'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain') => {
+    if (tab === 'quiz' && document) {
+      generateQuiz(document);
+    }
+    setActiveTab(tab);
   };
 
   const renderExplanation = () => {
@@ -202,7 +238,7 @@ export default function StudyPage() {
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => handleTabChange(tab.key as typeof activeTab)}
               className={`px-6 py-3 font-medium transition-colors ${
                 activeTab === tab.key
                   ? 'border-b-2 border-blue-600 text-blue-600'
@@ -268,7 +304,32 @@ export default function StudyPage() {
 
         {activeTab === 'quiz' && (
           quiz ? (
-            <QuizEngine quiz={quiz} />
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{quiz.title}</h2>
+                  <p className="mt-1 text-sm text-gray-600">Questions focus on the main topic and change each time you open a new quiz.</p>
+                </div>
+                <button
+                  onClick={() => generateQuiz(document)}
+                  className="rounded-md bg-blue-700 px-5 py-3 font-semibold text-white transition-colors hover:bg-blue-800"
+                >
+                  New quiz
+                </button>
+              </div>
+              <QuizEngine key={quiz.id} quiz={quiz} onRestart={() => generateQuiz(document)} />
+            </div>
+          ) : quizExhausted ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
+              <h2 className="text-xl font-semibold text-gray-900">You have seen every available question</h2>
+              <p className="mt-2 text-gray-700">Start a fresh round to reuse this material.</p>
+              <button
+                onClick={() => generateQuiz(document, true)}
+                className="mt-5 rounded-md bg-blue-700 px-5 py-3 font-semibold text-white transition-colors hover:bg-blue-800"
+              >
+                Start fresh round
+              </button>
+            </div>
           ) : (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
               <p className="text-gray-700">❓ Quiz could not be generated. Try uploading a document with more structured content.</p>

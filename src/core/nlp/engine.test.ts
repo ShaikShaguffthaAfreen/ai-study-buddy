@@ -81,6 +81,29 @@ describe('NLP Engine', () => {
       expect(question.correctAnswer).toBeLessThan(4);
     });
 
+    it('should focus questions on the main topic and track used questions', () => {
+      const firstQuiz = QuizGenerator.generateMCQs(sampleText, 5);
+      const nextQuiz = QuizGenerator.generateMCQs(
+        sampleText,
+        5,
+        firstQuiz.questions.map(question => question.id)
+      );
+
+      expect(firstQuiz.questions.some(question =>
+        question.question.toLowerCase().includes('learning')
+      )).toBe(true);
+      expect(nextQuiz.questions.length).toBeGreaterThan(0);
+      expect(new Set(firstQuiz.questions.map(question => question.question)).size)
+        .toBe(firstQuiz.questions.length);
+      expect(nextQuiz.questions.some(question =>
+        firstQuiz.questions.some(previous => previous.question === question.question)
+      )).toBe(false);
+      firstQuiz.questions.forEach(question => {
+        expect(question.options[question.correctAnswer]).toBeTruthy();
+        expect(question.explanation).toContain(question.options[question.correctAnswer]);
+      });
+    });
+
     it('should generate flashcards', () => {
       const flashcards = QuizGenerator.generateFlashcards(sampleText, 5);
       expect(flashcards.length).toBeGreaterThan(0);

@@ -4,7 +4,6 @@ import {
   ExplanationResult,
   SummaryResult,
   QuizGenerationResult,
-  QuizQuestion,
 } from '@/types';
 
 export class Summarizer {
@@ -164,7 +163,11 @@ export class QuizGenerator {
   /**
    * Generate multiple choice questions from text
    */
-  static generateMCQs(text: string, count: number = 5): QuizGenerationResult {
+  static generateMCQs(
+    text: string,
+    count: number = 5,
+    excludedQuestionIds: string[] = []
+  ): QuizGenerationResult {
     try {
       if (!text || text.trim().length === 0) {
         return { questions: [], totalQuestions: 0 };
@@ -175,32 +178,94 @@ export class QuizGenerator {
         return { questions: [], totalQuestions: 0 };
       }
 
-      const questions: QuizQuestion[] = [];
-
-      // Generate questions from sentences
-      let questionCount = 0;
-      for (let i = 0; i < sentences.length && questionCount < count; i++) {
-        const sentence = sentences[i];
-        
-        // Skip very short sentences
-        if (sentence.split(' ').length < 5) continue;
-
-        // Create question variations
-        if (sentence.includes('is') || sentence.includes('are')) {
-          questions.push(this.createDefinitionQuestion(sentence));
-          questionCount++;
-        } else if (sentence.includes('because') || sentence.includes('due to')) {
-          questions.push(this.createCausalQuestion(sentence));
-          questionCount++;
-        } else if (i < sentences.length - 1) {
-          questions.push(this.createComprehensionQuestion(sentence, sentences[i + 1]));
-          questionCount++;
+      const usableSentences = sentences.filter(sentence => sentence.split(' ').length >= 5);
+      const topics = KeywordExtractor.extractKeywords(text, 3);
+      const mainTopic = KeywordExtractor.extractConcepts(text, 1)[0] || topics[0] || 'the main topic';
+      const topicSentences = usableSentences.filter(sentence =>
+        topics.some(topic => sentence.toLowerCase().includes(topic.toLowerCase()))
+      );
+      const answerSentences = topicSentences.length > 0 ? topicSentences : usableSentences;
+      const excluded = new Set(excludedQuestionIds);
+      const seenPrompts = new Set<string>();
+      const facts = answerSentences.map(sentence => {
+        const definition = sentence.match(/^(.{2,80}?)\s+(is|are)\s+(.+)$/i);
+        const cause = sentence.split(/\s+(?:because|due to)\s+/i);
+        if (definition) {
+          const subject = definition[1].trim();
+          const answer = definition[3].trim();
+          return {
+            answer,
+            prompts: [
+              `What is ${subject}?`,
+              `How does the material define ${subject}?`,
+              `Which description of ${subject} matches the material?`,
+              `What does the text say about ${subject}?`,
+            ],
+          };
         }
-      }
+        if (cause.length > 1) {
+          const subject = cause[0].trim();
+          const answer = cause.slice(1).join(' because ').trim();
+          return {
+            answer,
+            prompts: [
+              `Why ${subject}?`,
+              `What reason does the material give for ${subject}?`,
+              `According to the text, what causes ${subject}?`,
+              `What explains ${subject}?`,
+            ],
+          };
+        }
+        const topic = topics.find(keyword => sentence.toLowerCase().includes(keyword.toLowerCase())) || mainTopic;
+        return {
+          answer: sentence,
+          prompts: [
+            `Which statement about ${topic} is supported by the material?`,
+            `What key point does the text make about ${topic}?`,
+            `Which detail about ${topic} is included in the material?`,
+            `What does the material say about ${topic}?`,
+          ],
+        };
+      });
+      const candidates = facts.flatMap(fact =>
+        fact.prompts.map(question => ({
+          id: `q-${this.hashQuestion(question)}`,
+          question,
+          answer: fact.answer,
+        })).filter(candidate => {
+          if (seenPrompts.has(candidate.question) || excluded.has(candidate.id)) return false;
+          seenPrompts.add(candidate.question);
+          return true;
+        }));
+
+      this.shuffle(candidates);
+      const questions = candidates.slice(0, count).map(candidate => {
+        const distractors = this.shuffle(
+          facts.map(fact => fact.answer).filter(answer => answer !== candidate.answer)
+        ).slice(0, 3);
+        const fallbackDistractors = [
+          'The material does not support this statement.',
+          'This idea is not mentioned in the material.',
+          'The text gives a different explanation.',
+        ];
+        const options = this.shuffle([
+          candidate.answer,
+          ...distractors,
+          ...fallbackDistractors.slice(0, Math.max(0, 3 - distractors.length)),
+        ]);
+
+        return {
+          id: candidate.id,
+          question: candidate.question,
+          options,
+          correctAnswer: options.indexOf(candidate.answer),
+          explanation: `According to the material: "${candidate.answer}"`,
+        };
+      });
 
       return {
-        questions: questions.slice(0, count),
-        totalQuestions: questions.length,
+        questions,
+        totalQuestions: candidates.length,
       };
     } catch (error) {
       console.error('Error generating MCQs:', error);
@@ -208,62 +273,22 @@ export class QuizGenerator {
     }
   }
 
-  private static createDefinitionQuestion(sentence: string): QuizQuestion {
-    const parts = sentence.split(' is ');
-    const term = parts[0].trim();
-    const definition = parts.length > 1 ? parts[1].trim() : sentence;
-
-    return {
-      id: `q-${Math.random()}`,
-      question: `What is ${term}?`,
-      options: [
-        definition,
-        `A type of process`,
-        `An important concept`,
-        `None of the above`,
-      ].sort(() => Math.random() - 0.5),
-      correctAnswer: 0,
-      explanation: `According to the text: "${definition}"`,
-      userAnswer: undefined,
-    };
+  private static shuffle<T>(items: T[]): T[] {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
   }
 
-  private static createCausalQuestion(sentence: string): QuizQuestion {
-    const parts = sentence.split(/because|due to/i);
-    const cause = parts.length > 1 ? parts[1].trim() : 'unknown cause';
-
-    return {
-      id: `q-${Math.random()}`,
-      question: `Why does ${parts[0].trim()}?`,
-      options: [
-        cause,
-        `Due to external factors`,
-        `For historical reasons`,
-        `No specific reason`,
-      ].sort(() => Math.random() - 0.5),
-      correctAnswer: 0,
-      explanation: `The text explains: "${sentence}"`,
-      userAnswer: undefined,
-    };
-  }
-
-  private static createComprehensionQuestion(
-    sentence1: string,
-    sentence2: string
-  ): QuizQuestion {
-    return {
-      id: `q-${Math.random()}`,
-      question: `Based on the text, what follows from: "${sentence1}"?`,
-      options: [
-        sentence2,
-        `The opposite happens`,
-        `Nothing happens`,
-        `It remains unchanged`,
-      ].sort(() => Math.random() - 0.5),
-      correctAnswer: 0,
-      explanation: `The text shows this relationship between the sentences.`,
-      userAnswer: undefined,
-    };
+  private static hashQuestion(value: string): string {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index++) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
   }
 
   /**
