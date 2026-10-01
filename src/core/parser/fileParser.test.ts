@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { FileParser } from '@/core/parser/fileParser';
 
 describe('File Parser', () => {

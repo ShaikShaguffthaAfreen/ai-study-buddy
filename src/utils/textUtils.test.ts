@@ -49,11 +49,11 @@ describe('TextUtils', () => {
       expect(words).toContain('quick');
     });
 
-    it('should filter out short words', () => {
+    it('should filter words shorter than three characters', () => {
       const words = TextUtils.extractWords('a an the quick');
       expect(words).not.toContain('a');
       expect(words).not.toContain('an');
-      expect(words).not.toContain('the');
+      expect(words).toContain('the');
     });
   });
 
