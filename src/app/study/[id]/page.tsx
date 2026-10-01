@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import { db } from '@/core/storage/indexedDb';
 import { Summarizer, QuizGenerator, KeywordExtractor, Explainer } from '@/core/nlp/engine';
 import { Document, Summary, Flashcard, Quiz } from '@/types';
-import { SummaryViewer } from '@/components/SummaryViewer';
+import { SummaryViewer, TextModeViewer } from '@/components/SummaryViewer';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
 import { QuizEngine } from '@/components/QuizEngine';
+import { TextUtils } from '@/utils/textUtils';
 import Link from 'next/link';
 
 export default function StudyPage() {
@@ -33,6 +34,7 @@ export default function StudyPage() {
           id: `summary-${doc.id}`,
           documentId: doc.id,
           content: summaryResult.text,
+          bulletPoints: summaryResult.bulletPoints,
           createdAt: new Date(),
           type: 'paragraph',
         });
@@ -144,10 +146,11 @@ export default function StudyPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Simplified Explanation</h3>
-          <div className="bg-white rounded-lg shadow p-6 text-gray-700 leading-relaxed">
-            {explanation.simplified}
-          </div>
+          <TextModeViewer
+            title="Simplified Explanation"
+            content={explanation.simplified}
+            bulletPoints={TextUtils.extractSentences(explanation.simplified)}
+          />
         </div>
 
         <div>

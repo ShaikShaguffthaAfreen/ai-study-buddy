@@ -190,7 +190,7 @@ export class QuizGenerator {
       const facts = answerSentences.map(sentence => {
         const definition = sentence.match(/^(.{2,80}?)\s+(is|are)\s+(.+)$/i);
         const cause = sentence.split(/\s+(?:because|due to)\s+/i);
-        if (definition) {
+        if (definition && definition[1].toLowerCase().includes(mainTopic.toLowerCase())) {
           const subject = definition[1].trim();
           const answer = definition[3].trim();
           return {
@@ -203,7 +203,7 @@ export class QuizGenerator {
             ],
           };
         }
-        if (cause.length > 1) {
+        if (cause.length > 1 && cause[0].toLowerCase().includes(mainTopic.toLowerCase())) {
           const subject = cause[0].trim();
           const answer = cause.slice(1).join(' because ').trim();
           return {
@@ -216,14 +216,13 @@ export class QuizGenerator {
             ],
           };
         }
-        const topic = topics.find(keyword => sentence.toLowerCase().includes(keyword.toLowerCase())) || mainTopic;
         return {
           answer: sentence,
           prompts: [
-            `Which statement about ${topic} is supported by the material?`,
-            `What key point does the text make about ${topic}?`,
-            `Which detail about ${topic} is included in the material?`,
-            `What does the material say about ${topic}?`,
+            `Which statement about ${mainTopic} is supported by the material?`,
+            `What key point does the text make about ${mainTopic}?`,
+            `Which detail about ${mainTopic} is included in the material?`,
+            `What does the material say about ${mainTopic}?`,
           ],
         };
       });

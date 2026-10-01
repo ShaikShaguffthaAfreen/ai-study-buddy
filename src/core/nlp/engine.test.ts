@@ -89,7 +89,7 @@ describe('NLP Engine', () => {
         firstQuiz.questions.map(question => question.id)
       );
 
-      expect(firstQuiz.questions.some(question =>
+      expect(firstQuiz.questions.every(question =>
         question.question.toLowerCase().includes('learning')
       )).toBe(true);
       expect(nextQuiz.questions.length).toBeGreaterThan(0);

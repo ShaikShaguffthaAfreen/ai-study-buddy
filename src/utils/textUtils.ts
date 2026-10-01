@@ -4,9 +4,7 @@ export class TextUtils {
    * Extract sentences from text
    */
   static extractSentences(text: string): string[] {
-    // Split by sentence delimiters while preserving the structure
-    const sentences = text
-      .split(/[.!?]+/)
+    const sentences = (text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
       .map(s => s.trim())
       .filter(s => s.length > 0);
     return sentences;

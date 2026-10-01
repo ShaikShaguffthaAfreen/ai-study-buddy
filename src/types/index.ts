@@ -21,6 +21,7 @@ export interface Summary {
   id: string;
   documentId: string;
   content: string;
+  bulletPoints?: string[];
   createdAt: Date;
   type: 'bullet' | 'paragraph';
 }

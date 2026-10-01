@@ -9,6 +9,7 @@ describe('TextUtils', () => {
       const sentences = TextUtils.extractSentences(sampleText);
       expect(sentences.length).toBeGreaterThan(0);
       expect(sentences[0]).toContain('quick brown fox');
+      expect(sentences[0].endsWith('.')).toBe(true);
     });
 
     it('should handle empty text', () => {

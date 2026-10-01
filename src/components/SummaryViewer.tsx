@@ -1,22 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Summary } from '@/types';
+import { TextUtils } from '@/utils/textUtils';
 
 interface SummaryViewerProps {
   summary: Summary;
 }
 
-export const SummaryViewer: React.FC<SummaryViewerProps> = ({ summary }) => {
-  const [viewMode, setViewMode] = React.useState<'paragraph' | 'bullet'>('paragraph');
+interface TextModeViewerProps {
+  title: string;
+  content: string;
+  bulletPoints?: string[];
+  footer?: React.ReactNode;
+}
+
+export const TextModeViewer: React.FC<TextModeViewerProps> = ({
+  title,
+  content,
+  bulletPoints,
+  footer,
+}) => {
+  const [viewMode, setViewMode] = useState<'paragraph' | 'bullet'>('paragraph');
+  const points = bulletPoints?.length ? bulletPoints : TextUtils.extractSentences(content);
 
   return (
     <div className="w-full bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">Summary</h2>
-        <div className="flex gap-2">
+        <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        <div className="flex gap-2" role="group" aria-label={`${title} format`}>
           <button
+            type="button"
             onClick={() => setViewMode('paragraph')}
+            aria-pressed={viewMode === 'paragraph'}
             className={`px-4 py-2 rounded transition-colors ${
               viewMode === 'paragraph'
                 ? 'bg-blue-500 text-white'
@@ -26,7 +42,9 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({ summary }) => {
             Paragraph
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('bullet')}
+            aria-pressed={viewMode === 'bullet'}
             className={`px-4 py-2 rounded transition-colors ${
               viewMode === 'bullet'
                 ? 'bg-blue-500 text-white'
@@ -40,24 +58,34 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({ summary }) => {
 
       <div className="mt-6 text-gray-700 leading-relaxed">
         {viewMode === 'paragraph' ? (
-          <p>{summary.content}</p>
+          <p>{content}</p>
         ) : (
-          <ul className="space-y-2">
-            {summary.content.split('.').map((point, index) => (
-              point.trim() && (
-                <li key={index} className="flex gap-3">
-                  <span className="text-blue-500 font-bold">•</span>
-                  <span>{point.trim()}.</span>
-                </li>
-              )
+          <ul className="space-y-3" aria-label={`${title} bullet points`}>
+            {points.map((point, index) => (
+              <li key={`${index}-${point}`} className="flex items-start gap-3">
+                <span className="mt-0.5 text-blue-600" aria-hidden="true">•</span>
+                <span>{point}</span>
+              </li>
             ))}
           </ul>
         )}
       </div>
-
-      <div className="mt-4 text-xs text-gray-500">
-        Created {new Date(summary.createdAt).toLocaleDateString()}
-      </div>
+      {footer && (
+        <div className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
+          {footer}
+        </div>
+      )}
     </div>
   );
 };
+
+export const SummaryViewer: React.FC<SummaryViewerProps> = ({ summary }) => (
+  <div>
+    <TextModeViewer
+      title="Summary"
+      content={summary.content}
+      bulletPoints={summary.bulletPoints}
+      footer={`Created ${new Date(summary.createdAt).toLocaleDateString()}`}
+    />
+  </div>
+);
