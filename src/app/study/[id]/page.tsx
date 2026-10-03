@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/core/storage/indexedDb';
 import { Summarizer, QuizGenerator, KeywordExtractor, Explainer } from '@/core/nlp/engine';
-import { Document, Summary, Flashcard, Quiz } from '@/types';
+import { Document, Summary, Flashcard, Quiz, QuizQuestion } from '@/types';
 import { SummaryViewer, TextModeViewer } from '@/components/SummaryViewer';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
 import { QuizEngine } from '@/components/QuizEngine';
@@ -19,6 +19,7 @@ export default function StudyPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain'>('overview');
   const [summary, setSummary] = useState<Summary | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [questionPool, setQuestionPool] = useState<QuizQuestion[]>([]);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,14 +47,15 @@ export default function StudyPage() {
         setKeywords(kw);
       }
 
-      // Generate flashcards
-      const flashcardData = QuizGenerator.generateFlashcards(doc.content, 10);
-      if (flashcardData && flashcardData.length > 0) {
-        const fcards: Flashcard[] = flashcardData.map((fc, index) => ({
+      // Keep flashcards and quiz rounds on the same topic-question set.
+      const questions = QuizGenerator.generateMCQs(doc.content, 10).questions;
+      setQuestionPool(questions);
+      if (questions.length > 0) {
+        const fcards: Flashcard[] = questions.map((question, index) => ({
           id: `fc-${doc.id}-${index}`,
           documentId: doc.id,
-          question: fc.question,
-          answer: fc.answer,
+          question: question.question,
+          answer: question.options[question.correctAnswer],
           difficulty: 'medium',
           createdAt: new Date(),
           reviewed: 0,
@@ -105,8 +107,15 @@ export default function StudyPage() {
       console.warn('Quiz history could not be read:', storageError);
     }
 
-    const quizResult = QuizGenerator.generateMCQs(doc.content, 5, usedQuestionIds);
-    if (quizResult.questions.length === 0) {
+    const excluded = new Set(usedQuestionIds);
+    const availableQuestions = questionPool.filter(question => !excluded.has(question.id));
+    for (let index = availableQuestions.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [availableQuestions[index], availableQuestions[swapIndex]] =
+        [availableQuestions[swapIndex], availableQuestions[index]];
+    }
+    const questions = availableQuestions.slice(0, 5);
+    if (questions.length === 0) {
       setQuiz(null);
       setQuizExhausted(true);
       return;
@@ -115,7 +124,7 @@ export default function StudyPage() {
     try {
       localStorage.setItem(
         historyKey,
-        JSON.stringify([...new Set([...usedQuestionIds, ...quizResult.questions.map(question => question.id)])])
+        JSON.stringify([...new Set([...usedQuestionIds, ...questions.map(question => question.id)])])
       );
     } catch (storageError) {
       console.warn('Quiz history could not be saved:', storageError);
@@ -125,7 +134,7 @@ export default function StudyPage() {
       id: `quiz-${doc.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       documentId: doc.id,
       title: `Quiz: ${doc.name}`,
-      questions: quizResult.questions,
+      questions,
       createdAt: new Date(),
     });
     setQuizExhausted(false);

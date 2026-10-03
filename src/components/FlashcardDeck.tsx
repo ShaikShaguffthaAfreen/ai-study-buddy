@@ -30,6 +30,9 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setIsFlipped(false);
+    } else {
+      setCurrentIndex(0);
+      setIsFlipped(false);
     }
   };
 
@@ -135,10 +138,9 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({
         </button>
         <button
           onClick={handleNext}
-          disabled={currentIndex === flashcards.length - 1}
-          className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
         >
-          Next →
+          {currentIndex === flashcards.length - 1 ? 'Review again' : 'Next →'}
         </button>
       </div>
     </div>

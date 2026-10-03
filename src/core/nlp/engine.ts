@@ -297,43 +297,9 @@ export class QuizGenerator {
     text: string,
     count: number = 10
   ): Array<{ question: string; answer: string }> {
-    try {
-      if (!text || text.trim().length === 0) {
-        return [];
-      }
-
-      const sentences = TextUtils.extractSentences(text);
-      if (!sentences || sentences.length === 0) {
-        return [];
-      }
-
-      const keywords = KeywordExtractor.extractKeywords(text, Math.max(count, 10));
-      if (!keywords || keywords.length === 0) {
-        return [];
-      }
-
-      const flashcards: Array<{ question: string; answer: string }> = [];
-
-      // Create keyword-based flashcards
-      for (const keyword of keywords) {
-        if (flashcards.length >= count) break;
-
-        const matchingSentences = sentences.filter(s =>
-          s.toLowerCase().includes(keyword.toLowerCase()) && s.length > 20
-        );
-
-        if (matchingSentences.length > 0) {
-          flashcards.push({
-            question: `What is ${keyword}?`,
-            answer: matchingSentences[0].substring(0, 200), // Limit answer length
-          });
-        }
-      }
-
-      return flashcards.slice(0, count);
-    } catch (error) {
-      console.error('Error generating flashcards:', error);
-      return [];
-    }
+    return this.generateMCQs(text, count).questions.map(question => ({
+      question: question.question,
+      answer: question.options[question.correctAnswer],
+    }));
   }
 }

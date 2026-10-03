@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { Summarizer, KeywordExtractor, Explainer, QuizGenerator } from '@/core/nlp/engine';
 
 describe('NLP Engine', () => {
@@ -111,7 +111,23 @@ describe('NLP Engine', () => {
       flashcards.forEach(card => {
         expect(card.question).toBeTruthy();
         expect(card.answer).toBeTruthy();
+        expect(card.question.toLowerCase()).toContain('learning');
       });
+    });
+
+    it('should keep flashcard questions and answers aligned with quiz generation', () => {
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const quizQuestions = QuizGenerator.generateMCQs(sampleText, 5).questions;
+        const flashcards = QuizGenerator.generateFlashcards(sampleText, 5);
+
+        expect(flashcards).toEqual(quizQuestions.map(question => ({
+          question: question.question,
+          answer: question.options[question.correctAnswer],
+        })));
+      } finally {
+        randomSpy.mockRestore();
+      }
     });
   });
 });
