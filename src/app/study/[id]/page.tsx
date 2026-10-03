@@ -161,21 +161,38 @@ export default function StudyPage() {
     if (!document) return null;
 
     const explanation = Explainer.explain(document.content);
-    const mainTopic = KeywordExtractor.extractConcepts(document.content, 1)[0] ||
-      keywords[0] || document.name;
-    const points = TextUtils.extractSentences(explanation.simplified).slice(0, 6);
+    const concepts = KeywordExtractor.extractConcepts(document.content, 8);
+    const topics = concepts.length > 0 ? concepts : keywords.slice(0, 5);
+    const topicHeadings = topics.length > 0 ? topics : [document.name];
+    const pointsByTopic = new Map(topicHeadings.map(topic => [topic, [] as string[]]));
+
+    TextUtils.extractSentences(explanation.simplified).forEach(point => {
+      const normalizedPoint = point.toLowerCase();
+      const topic = topicHeadings.find(candidate =>
+        normalizedPoint.includes(candidate.toLowerCase())
+      ) || topicHeadings[0];
+      pointsByTopic.get(topic)?.push(point);
+    });
 
     return (
       <section className="max-w-3xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-2xl font-bold text-gray-900">{mainTopic}</h2>
-        <ul className="mt-6 space-y-4">
-          {points.map((point, index) => (
-            <li key={index} className="flex gap-3 leading-7 text-gray-700">
-              <span className="mt-3 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
-              <span>{point}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="divide-y divide-gray-200">
+          {Array.from(pointsByTopic.entries())
+            .filter(([, points]) => points.length > 0)
+            .map(([topic, points]) => (
+              <div key={topic} className="py-6 first:pt-0 last:pb-0">
+                <h2 className="text-2xl font-bold text-gray-900">{topic}</h2>
+                <ul className="mt-5 space-y-4">
+                  {points.map((point, index) => (
+                    <li key={`${topic}-${index}`} className="flex gap-3 leading-7 text-gray-700">
+                      <span className="mt-3 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
       </section>
     );
   };
