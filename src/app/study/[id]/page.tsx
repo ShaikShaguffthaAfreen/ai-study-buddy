@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { db } from '@/core/storage/indexedDb';
 import { Summarizer, QuizGenerator, KeywordExtractor, Explainer } from '@/core/nlp/engine';
 import { Document, Summary, Flashcard, Quiz, QuizQuestion } from '@/types';
-import { SummaryViewer, TextModeViewer } from '@/components/SummaryViewer';
+import { SummaryViewer } from '@/components/SummaryViewer';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
 import { QuizEngine } from '@/components/QuizEngine';
 import { TextUtils } from '@/utils/textUtils';
@@ -95,7 +95,7 @@ export default function StudyPage() {
   }, [documentId, loadDocument]);
 
   const generateQuiz = (doc: Document, startFresh = false) => {
-    const historyKey = `quiz-history-${doc.id}`;
+    const historyKey = `quiz-history-v2-${doc.id}`;
     let usedQuestionIds: string[] = [];
     try {
       const storedHistory = startFresh ? null : localStorage.getItem(historyKey);
@@ -107,19 +107,29 @@ export default function StudyPage() {
       console.warn('Quiz history could not be read:', storageError);
     }
 
-    const excluded = new Set(usedQuestionIds);
-    const availableQuestions = questionPool.filter(question => !excluded.has(question.id));
-    for (let index = availableQuestions.length - 1; index > 0; index--) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [availableQuestions[index], availableQuestions[swapIndex]] =
-        [availableQuestions[swapIndex], availableQuestions[index]];
-    }
-    const questions = availableQuestions.slice(0, 5);
+    const questions = QuizGenerator.generateMCQs(doc.content, 5, usedQuestionIds).questions;
     if (questions.length === 0) {
       setQuiz(null);
       setQuizExhausted(true);
       return;
     }
+
+    const nextQuestionPool = [...questionPool];
+    questions.forEach(question => {
+      if (!nextQuestionPool.some(existing => existing.id === question.id)) {
+        nextQuestionPool.push(question);
+      }
+    });
+    setQuestionPool(nextQuestionPool);
+    setFlashcards(nextQuestionPool.map((question, index) => ({
+      id: `fc-${doc.id}-${index}`,
+      documentId: doc.id,
+      question: question.question,
+      answer: question.options[question.correctAnswer],
+      difficulty: 'medium',
+      createdAt: new Date(),
+      reviewed: 0,
+    })));
 
     try {
       localStorage.setItem(
@@ -151,40 +161,22 @@ export default function StudyPage() {
     if (!document) return null;
 
     const explanation = Explainer.explain(document.content);
+    const mainTopic = KeywordExtractor.extractConcepts(document.content, 1)[0] ||
+      keywords[0] || document.name;
+    const points = TextUtils.extractSentences(explanation.simplified).slice(0, 6);
 
     return (
-      <div className="space-y-8">
-        <div>
-          <TextModeViewer
-            title="Simplified Explanation"
-            content={explanation.simplified}
-            bulletPoints={TextUtils.extractSentences(explanation.simplified)}
-          />
-        </div>
-
-        <div>
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Key Terms</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {explanation.keyTerms.map((term, index) => (
-              <div key={index} className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="font-semibold text-gray-800">{term}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Examples</h3>
-          <ul className="space-y-2">
-            {explanation.examples.map((example, index) => (
-              <li key={index} className="flex gap-3 bg-white rounded-lg shadow p-4">
-                <span className="text-blue-500 font-bold">→</span>
-                <span className="text-gray-700">{example}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      <section className="max-w-3xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-2xl font-bold text-gray-900">{mainTopic}</h2>
+        <ul className="mt-6 space-y-4">
+          {points.map((point, index) => (
+            <li key={index} className="flex gap-3 leading-7 text-gray-700">
+              <span className="mt-3 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
     );
   };
 
