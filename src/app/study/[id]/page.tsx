@@ -8,6 +8,7 @@ import { Document, Summary, Flashcard, Quiz, QuizQuestion } from '@/types';
 import { SummaryViewer } from '@/components/SummaryViewer';
 import { FlashcardDeck } from '@/components/FlashcardDeck';
 import { QuizEngine } from '@/components/QuizEngine';
+import { StudyChat } from '@/components/StudyChat';
 import { TextUtils } from '@/utils/textUtils';
 import Link from 'next/link';
 
@@ -16,7 +17,7 @@ export default function StudyPage() {
   const documentId = params?.id as string;
 
   const [document, setDocument] = useState<Document | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain' | 'ask'>('overview');
   const [summary, setSummary] = useState<Summary | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [questionPool, setQuestionPool] = useState<QuizQuestion[]>([]);
@@ -150,7 +151,7 @@ export default function StudyPage() {
     setQuizExhausted(false);
   };
 
-  const handleTabChange = (tab: 'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain') => {
+  const handleTabChange = (tab: 'overview' | 'summary' | 'flashcards' | 'quiz' | 'explain' | 'ask') => {
     if (tab === 'quiz' && document) {
       generateQuiz(document);
     }
@@ -256,6 +257,7 @@ export default function StudyPage() {
             { key: 'flashcards', label: '🎴 Flashcards' },
             { key: 'quiz', label: '❓ Quiz' },
             { key: 'explain', label: '💡 Explain' },
+            { key: 'ask', label: '💬 Ask' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -361,6 +363,10 @@ export default function StudyPage() {
         {activeTab === 'explain' && (
           renderExplanation()
         )}
+
+        <div className={activeTab === 'ask' ? '' : 'hidden'}>
+          <StudyChat document={document} />
+        </div>
       </div>
     </main>
   );

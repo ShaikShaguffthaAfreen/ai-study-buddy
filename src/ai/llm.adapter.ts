@@ -1,5 +1,8 @@
+import { ChatMessage } from '@/types';
+
 // LLM Provider Interface
 export interface LLMProvider {
+  chat(messages: ChatMessage[], context: string): Promise<string>;
   explain(text: string): Promise<string>;
   summarize(text: string): Promise<string>;
   generateQuestions(text: string, count: number): Promise<string[]>;
@@ -30,6 +33,13 @@ export class LLMAdapter {
       throw new Error('LLM provider not initialized');
     }
     return this.provider.explain(text);
+  }
+
+  async chat(messages: ChatMessage[], context: string): Promise<string> {
+    if (!this.provider) {
+      throw new Error('LLM provider not initialized');
+    }
+    return this.provider.chat(messages, context);
   }
 
   async summarize(text: string): Promise<string> {
@@ -99,6 +109,43 @@ class OpenAIProvider implements LLMProvider {
       return data.choices[0]?.message?.content || '';
     } catch (error) {
       throw new Error(`OpenAI API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async chat(messages: ChatMessage[], context: string): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: `You are a patient study tutor. Answer in clear, student-friendly language. Use the uploaded study material as the primary source, preserve context from the conversation for follow-up questions such as "what does that mean?", and distinguish general knowledge from anything not covered by the material. If the question is ambiguous, ask one short clarifying question.\n\nUploaded study material:\n${context.slice(0, 18000)}`,
+            },
+            ...messages.slice(-12),
+          ],
+          temperature: 0.4,
+          max_tokens: 1200,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content;
+      if (typeof answer !== 'string' || !answer.trim()) {
+        throw new Error('OpenAI returned an empty answer');
+      }
+      return answer.trim();
+    } catch (error) {
+      throw new Error(`OpenAI chat failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -181,6 +228,40 @@ class GeminiProvider implements LLMProvider {
       return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (error) {
       throw new Error(`Gemini API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async chat(messages: ChatMessage[], context: string): Promise<string> {
+    try {
+      const systemPrompt = `You are a patient study tutor. Answer in clear, student-friendly language. Use the uploaded study material as the primary source, preserve context from the conversation for follow-up questions such as "what does that mean?", and distinguish general knowledge from anything not covered by the material. If the question is ambiguous, ask one short clarifying question.\n\nUploaded study material:\n${context.slice(0, 18000)}`;
+      const response = await fetch(
+        `${this.baseURL}/${this.model}:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: messages.slice(-12).map(message => ({
+              role: message.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: message.content }],
+            })),
+            generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (typeof answer !== 'string' || !answer.trim()) {
+        throw new Error('Gemini returned an empty answer');
+      }
+      return answer.trim();
+    } catch (error) {
+      throw new Error(`Gemini chat failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

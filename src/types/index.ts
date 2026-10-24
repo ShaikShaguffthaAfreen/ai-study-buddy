@@ -54,6 +54,11 @@ export interface QuizQuestion {
   userAnswer?: number;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface LearningProgress {
   id: string;
   documentId: string;
